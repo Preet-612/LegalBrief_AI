@@ -1,8 +1,7 @@
-
 import os
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 
 load_dotenv()
@@ -12,10 +11,9 @@ class SummaryAgent:
 
     def __init__(self):
 
-        
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
-            google_api_key=os.getenv("GEMINI_API_KEY"),
+        self.llm = ChatGroq(
+            model="llama-3.3-70b-versatile",   
+            groq_api_key=os.getenv("GROQ_API_KEY"),
             temperature=0.2
         )
 
@@ -26,7 +24,7 @@ class SummaryAgent:
                     """
 You are an expert Legal AI Assistant.
 
-Your task is to summarize legal documents into simple English.
+Your task is to summarize legal documents into simple Hinglish.
 
 The summary MUST contain these sections:
 
@@ -71,3 +69,5 @@ Legal Document
         )
 
         return response.content
+
+
