@@ -1,65 +1,78 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+# import os
+# import shutil
+# import tempfile
 
-from App.Workflow.work import summarize_contract, chat_with_contract
-
-app = FastAPI()
-
-
-@app.get("/")
-def root():
-    return {"status": "LegalBrief API is running"}
-
-
-class SummaryRequest(BaseModel):
-    query: str
-
-
-class ChatRequest(BaseModel):
-    question: str
-
-
-@app.post("/summarize")
-def summarize(request: SummaryRequest):
-
-    summary = summarize_contract(request.query)
-
-    return {"summary": summary}
-
-
-@app.post("/chat")
-def chat(request: ChatRequest):
-
-    answer = chat_with_contract(request.question)
-
-    return {"answer": answer}
-# from fastapi import FastAPI
+# from fastapi import FastAPI, File, HTTPException, UploadFile
 # from pydantic import BaseModel
 
-# from App.Workflow.work import summarize_contract, chat_with_contract
+# from App.Workflow.work import upload_document, ask_question
 
-# app = FastAPI()
+# app = FastAPI(title="LegalBrief API")
 
-
-# class SummaryRequest(BaseModel):
-#     query: str
+# UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "legalbrief_uploads")
+# os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # class ChatRequest(BaseModel):
 #     question: str
 
 
-# @app.post("/summarize")
-# def summarize(request: SummaryRequest):
+# @app.post("/api/upload")
+# async def upload(file: UploadFile = File(...)):
+#     file_path = os.path.join(UPLOAD_DIR, file.filename)
+#     with open(file_path, "wb") as f:
+#         shutil.copyfileobj(file.file, f)
 
-#     summary = summarize_contract(request.query)
-
-#     return {"summary": summary}
+#     return {"status": upload_document(file_path)}
 
 
-# @app.post("/chat")
-# def chat(request: ChatRequest):
+# @app.post("/api/chat")
+# async def chat(request: ChatRequest):
+#     try:
+#         return {"answer": ask_question(request.question)}
+#     except RuntimeError as exc:
+#         raise HTTPException(status_code=400, detail=str(exc))
 
-#     answer = chat_with_contract(request.question)
 
-#     return {"answer": answer}
+import os
+import shutil
+import tempfile
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from App.Workflow.work import upload_document, ask_question
+
+app = FastAPI(title="LegalBrief API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # dev only — restrict this in production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "legalbrief_uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+class ChatRequest(BaseModel):
+    question: str
+
+
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    return {"status": upload_document(file_path)}
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    try:
+        return {"answer": ask_question(request.question)}
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
