@@ -72,7 +72,7 @@ export default function LegalBriefApp() {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_BASE}/api/upload`, {
+      const res = await fetch(`${API_BASE}api/upload`, {
         method: "POST",
         body: formData,
       });
