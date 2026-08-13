@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import "./LegalBriefApp.css";
+import "./Legalbriefapp.css";
 // Supabase: client import
 import { supabase } from "./lib/supabase";
 // thinking-orbs: animated status indicators
