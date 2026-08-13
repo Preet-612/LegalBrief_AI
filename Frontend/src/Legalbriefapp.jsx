@@ -5,7 +5,7 @@ import { supabase } from "./lib/supabase";
 // thinking-orbs: animated status indicators
 import { ThinkingOrb } from "thinking-orbs";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 export default function LegalBriefApp() {
   const [fileName, setFileName] = useState(null);
