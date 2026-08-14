@@ -24,7 +24,7 @@ class ChatAgent:
                     """
 You are an expert Legal AI Assistant.
 
-Your task is to answer the user's question strictly based on the provided legal document context, in simple Hinglish.
+Your task is to answer the user's question strictly based on the provided legal document context, in simple English.
 
 
 
@@ -56,7 +56,7 @@ You are an expert Legal AI Assistant.
 
 Based on the legal document provided, generate exactly 4 short, useful
 starter questions a normal user (non-lawyer) would want to ask about this
-document, in simple Hinglish.
+document, in simple English.
 
 Rules:
 - Output ONLY the 4 questions.
@@ -85,7 +85,7 @@ You are an expert Legal AI Assistant.
 
 Based on the legal document, the user's last question, and the answer given
 to them, generate exactly 3 short, relevant follow-up questions the user
-might want to ask next, in simple Hinglish.
+might want to ask next, in simple English.
 
 Rules:
 - Output ONLY the 3 questions.
