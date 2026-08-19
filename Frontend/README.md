@@ -1,69 +1,60 @@
-# LegalBrief Agent — Frontend
-
-AI-powered contract intelligence UI. This is a **frontend-only** build: all
-data is mocked in `src/data/`, so it runs standalone with no backend.
+# LegalBrief
 
 ## Setup
 
 ```bash
-npm install
-npm run dev       # http://localhost:5173
-npm run build      # production build to /dist
-npm run preview    # preview the production build
+npm i
+cp .env.example .env   # then fill in the values below
+npm run dev
 ```
 
-## Stack & why
+Open http://localhost:5173
 
-| Package | Purpose |
+## Environment variables (`.env`)
+
+| Variable | Description |
 |---|---|
-| React 19 + Vite | fast dev server, modern React features |
-| Tailwind CSS v4 (`@tailwindcss/vite`) | utility-first styling, no separate config file needed |
-| React Router DOM v7 | client-side routing across pages |
-| Framer Motion | page/element transitions (hero, modals, toasts, progress bar) |
-| Lucide React | icon set used throughout |
-| React Icons | installed per spec, available for any icon not in Lucide |
-| React Markdown | renders AI chat responses (bold, lists, etc.) safely |
+| `VITE_API_BASE_URL` | Base URL of your backend, trailing slash included (e.g. `https://api.example.com/`). Used for `api/upload` and `api/chat`. |
+| `VITE_SUPABASE_URL` | Your Supabase project URL. |
+| `VITE_SUPABASE_ANON_KEY` | Your Supabase anon/public key. |
 
-No `axios`, no API calls — every page reads from `src/data/*.js`. Each data
-file mirrors what a real API response would look like, so swapping in real
-calls later means: write a `services/` layer, replace the mock `setTimeout`
-calls in the contexts/hooks with real requests, and the components
-themselves don't need to change.
+## Expected Supabase schema
 
-## Folder structure
+This app assumes two tables already exist (unchanged from the original app):
+
+**`documents`**
+| column | type |
+|---|---|
+| `id` | uuid / int, primary key |
+| `file_name` | text |
+| `status` | text (`valid` / `invalid`) |
+| `created_at` | timestamp, default `now()` |
+
+**`chat_messages`**
+| column | type |
+|---|---|
+| `id` | uuid / int, primary key |
+| `document_id` | references `documents.id` |
+| `role` | text (`user` / `assistant` / `error`) |
+| `content` | text |
+| `created_at` | timestamp, default `now()` |
+
+## Project structure
 
 ```
 src/
-  assets/
+  main.jsx              # React entry point
+  LegalBriefApp.jsx      # Main app: state, API calls, Supabase reads/writes
+  LegalBriefApp.css       # Design system (tokens, layout, components)
+  lib/supabase.js         # Supabase client
   components/
-    common/      Button, Input, Textarea, Card, Modal, Loader, Toast, EmptyState/ErrorState
-    layout/      Navbar, Sidebar, Footer, DashboardLayout
-    upload/      FileUploader, UploadProgress, FilePreview
-    chat/        ChatWindow, ChatBubble, ChatInput, ChatHistory, SuggestedQuestions, TypingIndicator
-    documents/   DocumentCard
-    summary/     SummaryCard
-    risk/        RiskCard, RiskScore
-  pages/         Landing, Dashboard, Upload, Chat, Documents, Summary, RiskAnalysis, Settings
-  context/       ThemeContext, DocumentContext, ChatContext
-  hooks/         useTheme, useChat, useUpload
-  data/          chatData.js, documentData.js, summaryData.js, riskData.js  <- mock data lives here
-  utils/         constants.js, formatters.js
-  routes/        AppRoutes.jsx
-  App.jsx
-  main.jsx
-  index.css
+    Sidebar.jsx            # Recent documents list + "New chat"
+    TopBar.jsx              # Doc title, status badge, upload/replace button
+    ChatThread.jsx           # Message list
+    ChatDock.jsx              # Chat input row
 ```
 
-## Routes
+## Backend contract (unchanged)
 
-`/` , `/dashboard` , `/upload` , `/chat` , `/documents` , `/summary/:id` ,
-`/risk-analysis/:id` , `/settings`
-
-## Notes
-
-- Dark mode is fully wired (ThemeContext + Tailwind `dark:` classes,
-  toggle in the navbar and in Settings) - not just a placeholder.
-- Upload flow simulates progress with a timer in `useUpload`; swap that
-  block for real upload-progress events when a backend exists.
-- Chat replies are randomly picked from a mock pool in `ChatContext`;
-  replace the `setTimeout` with a real `askQuestion()` call later.
+- `POST {VITE_API_BASE_URL}api/upload` — multipart form with a `file` field. Expects JSON back with `status: "Valid" | "Invalid"`.
+- `POST {VITE_API_BASE_URL}api/chat` — JSON body `{ question }`. Expects JSON back with `{ answer }` (or `{ detail }` on non-2xx).

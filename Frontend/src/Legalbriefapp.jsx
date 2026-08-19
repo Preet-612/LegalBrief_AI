@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import "./Legalbriefapp.css";
+import "./index.css";
+import "./LegalBriefApp.css";
 // Supabase: client import
 import { supabase } from "./lib/supabase";
-// thinking-orbs: animated status indicators
-import { ThinkingOrb } from "thinking-orbs";
+import Sidebar from "./components/Sidebar";
+import TopBar from "./components/TopBar";
+import ChatThread from "./components/ChatThread";
+import ChatDock from "./components/ChatDock";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -16,6 +19,8 @@ export default function LegalBriefApp() {
   const [asking, setAsking] = useState(false);
   // Supabase: track the current document row so chat messages can be linked to it
   const [documentId, setDocumentId] = useState(null);
+  // Supabase: recent documents shown in the sidebar
+  const [documents, setDocuments] = useState([]);
   // thinking-orbs: which sub-stage of the upload flow we're in
   // "connecting" -> reaching the backend, "solving" -> backend validating the doc
   const [uploadPhase, setUploadPhase] = useState(null);
@@ -26,17 +31,19 @@ export default function LegalBriefApp() {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, asking]);
 
-  // Supabase: on load, restore the most recent document + its chat history
-  // so a page refresh doesn't wipe the current session.
+  // Supabase: load the recent documents list, then restore the most recent
+  // document + its chat history so a page refresh doesn't wipe the session.
   useEffect(() => {
     const restoreLastSession = async () => {
       const { data: docs, error: docErr } = await supabase
         .from("documents")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(1);
+        .limit(20);
 
       if (docErr || !docs || docs.length === 0) return;
+
+      setDocuments(docs);
 
       const doc = docs[0];
       setDocumentId(doc.id);
@@ -56,6 +63,38 @@ export default function LegalBriefApp() {
 
     restoreLastSession();
   }, []);
+
+  // Supabase: switch the active document from the sidebar and load its chat history
+  const handleSelectDocument = async (doc) => {
+    if (doc.id === documentId) return;
+
+    setDocumentId(doc.id);
+    setFileName(doc.file_name);
+    setStatus(doc.status);
+    setErrorMsg("");
+    setMessages([]);
+
+    const { data: history, error: msgErr } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("document_id", doc.id)
+      .order("created_at", { ascending: true });
+
+    if (!msgErr && history) {
+      setMessages(history.map((m) => ({ role: m.role, text: m.content })));
+    }
+  };
+
+  // Start a fresh session and prompt the person to upload a new document
+  const handleNewChat = () => {
+    setFileName(null);
+    setStatus("idle");
+    setErrorMsg("");
+    setMessages([]);
+    setDocumentId(null);
+    setUploadPhase(null);
+    fileInputRef.current?.click();
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -100,6 +139,7 @@ export default function LegalBriefApp() {
         console.error("Supabase: failed to save document", insertErr);
       } else {
         setDocumentId(inserted.id);
+        setDocuments((prev) => [inserted, ...prev]);
       }
     } catch (err) {
       setStatus("error");
@@ -184,110 +224,40 @@ export default function LegalBriefApp() {
   const canChat = status === "valid";
 
   return (
-    <div className="lb-page">
-      <div className="lb-container">
-        <header>
-          <p className="lb-eyebrow">Case file</p>
-          <h1 className="lb-title">LegalBrief</h1>
-          <p className="lb-subtitle">Upload a contract, then ask what it actually means.</p>
-        </header>
+    <div className="lb-app">
+      <Sidebar
+        documents={documents}
+        activeDocId={documentId}
+        onSelectDocument={handleSelectDocument}
+        onNewChat={handleNewChat}
+      />
 
-        <section className="lb-card">
-          <div className="lb-upload-row">
-            <div style={{ minWidth: 0 }}>
-              <p className="lb-filename">{fileName || "No document uploaded"}</p>
-              {statusBadge && (
-                <span className={`lb-badge ${statusBadge.cls}`}>
-                  {status === "uploading" && (
-                    <ThinkingOrb
-                      state={uploadPhaseInfo?.orbState || "searching"}
-                      size={20}
-                      theme="dark"
-                      className="lb-orb"
-                      aria-label={statusBadge.text}
-                    />
-                  )}
-                  {statusBadge.text}
-                </span>
-              )}
-            </div>
-            <button className="lb-btn" onClick={() => fileInputRef.current?.click()}>
-              {fileName ? "Replace file" : "Upload document"}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileChange}
-              className="lb-hidden-input"
-              accept=".pdf,.txt,.doc,.docx"
-            />
-          </div>
-        </section>
+      <main className="lb-main">
+        <TopBar
+          fileName={fileName}
+          status={status}
+          statusBadge={statusBadge}
+          uploadPhaseInfo={uploadPhaseInfo}
+          fileInputRef={fileInputRef}
+          onFileChange={handleFileChange}
+        />
 
-        <section className="lb-chat-card">
-          <div className="lb-thread">
-            {messages.length === 0 && (
-              <p className="lb-empty">
-                {canChat
-                  ? "Ask a question about the contract you uploaded."
-                  : "Upload a valid document to start asking questions."}
-              </p>
-            )}
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`lb-row ${m.role === "user" ? "lb-row-user" : "lb-row-assistant"}`}
-              >
-                <div
-                  className={`lb-bubble ${
-                    m.role === "user"
-                      ? "lb-bubble-user"
-                      : m.role === "error"
-                      ? "lb-bubble-error"
-                      : "lb-bubble-assistant"
-                  }`}
-                >
-                  {m.text}
-                </div>
-              </div>
-            ))}
-            {asking && (
-              <div className="lb-row lb-row-assistant">
-                <div className="lb-bubble lb-bubble-pending">
-                  <ThinkingOrb
-                    state="working"
-                    size={20}
-                    theme="dark"
-                    className="lb-orb"
-                    aria-label="Thinking"
-                  />
-                  Thinking...
-                </div>
-              </div>
-            )}
-            <div ref={threadEndRef} />
-          </div>
+        <ChatThread
+          messages={messages}
+          asking={asking}
+          canChat={canChat}
+          threadEndRef={threadEndRef}
+        />
 
-          <div className="lb-input-row">
-            <textarea
-              rows={1}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={!canChat}
-              placeholder={canChat ? "What are the termination terms?" : "Upload a document first"}
-              className="lb-textarea"
-            />
-            <button
-              className="lb-btn"
-              onClick={handleAsk}
-              disabled={!canChat || asking || !question.trim()}
-            >
-              Ask
-            </button>
-          </div>
-        </section>
-      </div>
+        <ChatDock
+          question={question}
+          setQuestion={setQuestion}
+          onAsk={handleAsk}
+          onKeyDown={handleKeyDown}
+          canChat={canChat}
+          asking={asking}
+        />
+      </main>
     </div>
   );
 }
